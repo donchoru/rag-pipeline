@@ -234,8 +234,11 @@ with tab_upload:
 
 
 # ── 탭: 검색 ──
-@st.cache_data
-def _load_documents() -> list[dict]:
+def _jsonl_mtime() -> float:
+    return PROCESSED_JSONL.stat().st_mtime if PROCESSED_JSONL.exists() else 0
+
+@st.cache_data(ttl=10)
+def _load_documents(_mtime: float = 0) -> list[dict]:
     """processed.jsonl → 중복 제거된 문서 리스트 (같은 source_file은 최신만)."""
     if not PROCESSED_JSONL.exists():
         return []
@@ -252,7 +255,7 @@ def _load_documents() -> list[dict]:
 with tab_search:
     st.subheader("처리된 문서 검색")
 
-    docs = _load_documents()
+    docs = _load_documents(_jsonl_mtime())
 
     if not docs:
         st.info("아직 처리된 문서가 없습니다.")
