@@ -4,9 +4,9 @@ import json
 import logging
 import shutil
 import uuid
-from pathlib import Path
+from datetime import datetime, timezone
 
-from config import INPUT_DIR, OUTPUT_DIR, ARCHIVE_DIR, ERROR_DIR
+from config import INPUT_DIR, OUTPUT_DIR, ARCHIVE_DIR, ERROR_DIR, TRACE_DIR
 import db
 from llm import LLMClient
 
@@ -34,10 +34,14 @@ def run_pipeline() -> str:
     # 2. LLM 클라이언트 초기화
     llm = LLMClient()
 
+    # 3. 트레이스 디렉토리 (run_id별)
+    run_trace_dir = TRACE_DIR / run_id
+    run_trace_dir.mkdir(exist_ok=True)
+
     success_count = 0
     error_count = 0
 
-    # 3. 각 파일 처리
+    # 4. 각 파일 처리
     for filepath in txt_files:
         filename = filepath.name
         try:
@@ -45,8 +49,10 @@ def run_pipeline() -> str:
             if not text.strip():
                 raise ValueError("빈 파일")
 
-            # LLM 호출
-            result = llm.structure_document(text, filename)
+            # LLM 호출 → 결과 + 트레이스
+            output = llm.structure_document(text, filename)
+            result = output["result"]
+            trace = output["trace"]
 
             # JSONL 출력
             output_record = {
@@ -61,10 +67,33 @@ def run_pipeline() -> str:
             with open(output_path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(output_record, ensure_ascii=False) + "\n")
 
+            # 트레이스 파일 저장
+            trace_record = {
+                "run_id": run_id,
+                "filename": filename,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "model": trace["model"],
+                "input_chars": trace["input_chars"],
+                "input_tokens": trace["input_tokens"],
+                "output_tokens": trace["output_tokens"],
+                "latency_ms": trace["latency_ms"],
+                "reasoning": trace["reasoning"],
+                "output_summary": {
+                    "chunk_count": len(result["chunks"]),
+                    "chunk_sizes": [len(c["content"]) for c in result["chunks"]],
+                    "metadata": result["metadata"],
+                },
+            }
+
+            stem = filepath.stem  # 확장자 제외 파일명
+            trace_path = run_trace_dir / f"{stem}.trace.json"
+            with open(trace_path, "w", encoding="utf-8") as f:
+                json.dump(trace_record, f, ensure_ascii=False, indent=2)
+
             # 원본 → archive
             shutil.move(str(filepath), str(ARCHIVE_DIR / filename))
             success_count += 1
-            logger.info(f"[{run_id}] ✓ {filename}")
+            logger.info(f"[{run_id}] ✓ {filename} (trace → {trace_path.name})")
 
         except Exception as e:
             error_count += 1
@@ -80,7 +109,7 @@ def run_pipeline() -> str:
             except Exception:
                 pass
 
-    # 4. 완료 기록
+    # 5. 완료 기록
     db.finish_run(run_id, success_count, error_count)
     logger.info(
         f"[{run_id}] 파이프라인 완료 — 성공: {success_count}, 에러: {error_count}"

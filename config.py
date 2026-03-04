@@ -9,6 +9,7 @@ INPUT_DIR = BASE_DIR / "input_docs"
 OUTPUT_DIR = BASE_DIR / "output_jsonl"
 ARCHIVE_DIR = BASE_DIR / "archive_docs"
 ERROR_DIR = BASE_DIR / "error_docs"
+TRACE_DIR = BASE_DIR / "traces"
 DB_PATH = BASE_DIR / "pipeline_logs.db"
 
 LLM_MODEL = "gemini-2.0-flash"
@@ -34,5 +35,5 @@ def get_api_key() -> str:
 
 
 # 디렉토리 자동 생성
-for d in (INPUT_DIR, OUTPUT_DIR, ARCHIVE_DIR, ERROR_DIR):
+for d in (INPUT_DIR, OUTPUT_DIR, ARCHIVE_DIR, ERROR_DIR, TRACE_DIR):
     d.mkdir(exist_ok=True)
