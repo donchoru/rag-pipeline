@@ -102,7 +102,25 @@ class LLMClient:
         latency_ms = int((time.time() - start) * 1000)
 
         raw = response.text.strip()
-        parsed = json.loads(raw)
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            # 1회 재시도 — 긴 문서에서 JSON 깨질 수 있음
+            logger.warning(f"JSON 파싱 실패, 재시도: {filename}")
+            time.sleep(2)
+            start = time.time()
+            response = self._client.models.generate_content(
+                model=self._model,
+                contents=prompt,
+                config={
+                    "system_instruction": _SYSTEM_PROMPT,
+                    "temperature": 0.0,
+                    "response_mime_type": "application/json",
+                },
+            )
+            latency_ms = int((time.time() - start) * 1000)
+            raw = response.text.strip()
+            parsed = json.loads(raw)
 
         # 필수 필드 검증
         for key in ("markdown", "metadata", "chunks"):
