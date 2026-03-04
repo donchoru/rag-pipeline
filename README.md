@@ -262,20 +262,16 @@ scheduler.add_job(run_pipeline, "cron", hour=0, minute=0, id="rag_pipeline")
 
 ### 6. `dashboard.py` — Streamlit 대시보드
 
-3개 탭으로 구성된 모니터링 UI.
+6개 탭으로 구성된 모니터링 + 문서 관리 UI.
 
-**탭 1: 대시보드**
-- 상단 메트릭 카드 4개: 최근 실행 상태 | 총 처리 문서 | 에러 문서 | 실행 스케줄
-- "지금 즉시 실행" 버튼 → `subprocess`로 `pipeline.py` 실행
-- 실행 이력 테이블 (최근 20건)
-
-**탭 2: 에러 로그**
-- run_id 드롭다운 필터
-- 에러 파일명 + 에러 타입 + 메시지 테이블
-
-**탭 3: 설정**
-- 현재 스케줄, LLM 모델 표시
-- 각 폴더별 파일 수 (input/output/archive/error)
+| 탭 | 기능 |
+|----|------|
+| **대시보드** | 실행 상태 메트릭, 즉시 실행 버튼, 실행 이력 테이블 |
+| **📤 업로드** | 브라우저에서 .txt 파일 드래그 앤 드롭 업로드, 즉시 파이프라인 실행 |
+| **🔍 검색** | 처리된 문서 키워드 검색 + 토픽 필터, 청크/마크다운 열람 |
+| **트레이스** | LLM 추론 과정 상세 보기 (토큰, 응답시간, 추론 근거) |
+| **에러 로그** | run_id별 에러 파일, 에러 타입/메시지 조회 |
+| **설정** | 스케줄, LLM 모델, 폴더별 파일 수 현황 |
 
 ---
 
@@ -317,8 +313,12 @@ python pipeline.py
 ### 4. 대시보드 실행
 
 ```bash
+# 내 PC에서만 볼 때
 streamlit run dashboard.py --server.port 8501
 # → http://localhost:8501
+
+# 팀원도 접속할 수 있게 열 때 (아래 "사내 배포 가이드" 참고)
+streamlit run dashboard.py --server.port 8501 --server.address 0.0.0.0
 ```
 
 ### 5. 스케줄러 실행 (선택)
@@ -442,6 +442,178 @@ with open("output_jsonl/processed.jsonl") as f:
 | `apscheduler` | latest | 스케줄 실행 |
 
 Python 3.12 이상 권장.
+
+---
+
+## 사내 배포 가이드 (팀원용)
+
+> 회사 네트워크에서 여러 사람이 브라우저로 접속해서
+> 문서를 업로드하고, 처리 결과를 검색/열람할 수 있도록 세팅하는 방법.
+
+### 전체 흐름
+
+```
+┌─────────────────────────────────────────────────────┐
+│  서버 PC (고정 IP, 예: 10.0.1.50)                    │
+│                                                     │
+│  streamlit run dashboard.py                         │
+│    --server.port 8501                               │
+│    --server.address 0.0.0.0                         │
+│                                                     │
+│  → 포트 8501에서 대기                                │
+└──────────────────────┬──────────────────────────────┘
+                       │ 방화벽 8501 오픈
+                       │
+        ┌──────────────┼──────────────┐
+        │              │              │
+   팀원 A 브라우저  팀원 B 브라우저  팀원 C 브라우저
+   http://10.0.1.50:8501
+```
+
+### Step 1. 서버 PC에 설치
+
+아무 PC나 가능. Windows/Mac/Linux 다 됨. Python만 있으면 됨.
+
+```bash
+# 1) Python 확인 (3.12 이상 권장)
+python3 --version
+
+# 2) 코드 받기
+git clone https://github.com/donchoru/rag-pipeline.git
+cd rag-pipeline
+
+# 3) 가상환경 만들기
+python3 -m venv .venv
+
+# 4) 가상환경 활성화
+#    Mac/Linux:
+source .venv/bin/activate
+#    Windows:
+#    .venv\Scripts\activate
+
+# 5) 패키지 설치
+pip install -r requirements.txt
+```
+
+### Step 2. API 키 설정
+
+Gemini API 키가 필요함. [Google AI Studio](https://aistudio.google.com/apikey)에서 무료로 발급.
+
+```bash
+# 방법 A: 환경변수 (가장 간단)
+export GEMINI_API_KEY="여기에-발급받은-키-붙여넣기"
+
+# 방법 B: .env 파일 (서버 재시작해도 유지하고 싶을 때)
+echo 'GEMINI_API_KEY=여기에-발급받은-키-붙여넣기' > .env
+# → config.py에서 python-dotenv로 읽도록 수정 필요 (기본은 환경변수)
+
+# 방법 C: macOS Keychain (Mac 서버인 경우)
+security add-generic-password -s GEMINI_API_KEY -a "" -w "여기에-키"
+```
+
+> **확인**: `python -c "from config import get_api_key; print(get_api_key()[:8])"` 실행해서 키 앞 8자리 나오면 OK.
+
+### Step 3. 서버 IP 확인
+
+```bash
+# Mac/Linux
+ifconfig | grep "inet " | grep -v 127.0.0.1
+
+# Windows
+ipconfig | findstr "IPv4"
+```
+
+예시 출력: `inet 10.0.1.50 netmask ...` → 서버 IP는 `10.0.1.50`
+
+### Step 4. 방화벽 오픈 요청
+
+인프라/보안팀에 아래 내용으로 요청:
+
+```
+- 용도: RAG 문서 전처리 대시보드
+- 서버 IP: 10.0.1.50 (← 실제 IP로 변경)
+- 포트: 8501 / TCP / 인바운드
+- 접속 범위: 사내 네트워크 (10.0.0.0/16 등)
+```
+
+**OS 자체 방화벽도 확인:**
+
+```bash
+# macOS — 시스템 설정 > 네트워크 > 방화벽
+# 켜져 있으면 "옵션"에서 Python 허용 추가
+
+# Windows
+netsh advfirewall firewall add rule name="Streamlit" dir=in action=allow protocol=TCP localport=8501
+
+# Linux (Ubuntu)
+sudo ufw allow 8501/tcp
+```
+
+### Step 5. 대시보드 실행
+
+```bash
+cd rag-pipeline
+source .venv/bin/activate    # Windows: .venv\Scripts\activate
+
+# 환경변수 설정 (Step 2에서 .env 안 쓴 경우)
+export GEMINI_API_KEY="your-key"
+
+# 대시보드 시작
+streamlit run dashboard.py --server.port 8501 --server.address 0.0.0.0
+```
+
+터미널에 이렇게 나오면 성공:
+
+```
+  You can now view your Streamlit app in your browser.
+
+  Network URL: http://10.0.1.50:8501
+```
+
+### Step 6. 팀원 접속
+
+팀원에게 공유할 내용:
+
+```
+브라우저에서 http://10.0.1.50:8501 접속하세요.
+                ↑ 실제 서버 IP로 변경
+
+📤 업로드 탭: .txt 파일 드래그하면 자동으로 AI가 구조화 처리합니다.
+🔍 검색 탭:  처리된 문서를 키워드/토픽으로 검색할 수 있습니다.
+```
+
+### 트러블슈팅
+
+| 증상 | 원인 | 해결 |
+|------|------|------|
+| 접속이 안 됨 | 방화벽 미오픈 | Step 4 다시 확인 |
+| `ERR_CONNECTION_REFUSED` | 서버가 안 켜짐 | Step 5 터미널 확인 |
+| `localhost`만 됨, IP 접속 안 됨 | `--server.address 0.0.0.0` 빠짐 | 실행 명령어 확인 |
+| API 키 에러 | `GEMINI_API_KEY` 미설정 | Step 2 확인 |
+| 업로드 후 처리 안 됨 | 파이프라인 에러 | 에러 로그 탭 확인 |
+| 여러 명이 동시에 쓸 때 충돌? | 충돌 없음 | Streamlit이 세션 격리 내장 |
+
+### 백그라운드 실행 (서버 꺼도 유지)
+
+터미널 닫아도 계속 돌게 하려면:
+
+```bash
+# Mac/Linux — nohup 사용
+nohup streamlit run dashboard.py \
+  --server.port 8501 \
+  --server.address 0.0.0.0 \
+  > dashboard.log 2>&1 &
+
+# 끄려면
+ps aux | grep streamlit
+kill <PID>
+
+# 또는 screen/tmux 사용
+tmux new -s rag
+streamlit run dashboard.py --server.port 8501 --server.address 0.0.0.0
+# Ctrl+B, D 로 빠져나오면 백그라운드 유지
+# 다시 들어가려면: tmux attach -t rag
+```
 
 ---
 
