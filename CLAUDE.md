@@ -36,6 +36,18 @@ streamlit run dashboard.py --server.port 8501 --server.address 0.0.0.0
 3. 실패 → `error_docs/`로 이동 + `error_logs` 기록
 4. `pipeline_logs.db`에 실행 이력 저장
 
+## 주요 기능
+- **웹 업로드**: 브라우저에서 .txt 드래그 앤 드롭 → 즉시 파이프라인 실행
+- **파일 편집기**: input/archive 파일 조회·수정·새 파일 생성
+- **검색**: 처리된 문서 키워드 검색 + 토픽 필터
+- **변경 파일만 실행**: 마지막 실행 이후 추가/수정된 파일만 처리 (`--since`)
+- **동시 실행 방지**: `fcntl.flock` 파일 락 — 다른 사용자 실행 중이면 대기
+- **LLM 재시도**: JSON 파싱 실패 시 temperature=0.0으로 1회 자동 재시도
+
+## 제약사항
+- 입력 파일은 **10KB 이하** 권장 (Gemini Flash가 긴 문서에서 JSON 깨뜨림)
+- 10KB 초과 시 챕터 단위로 분할 후 투입
+
 ## LLM 교체
 `llm.py`의 `LLMClient` 내부만 수정하면 됨.
 현재: Gemini 2.0 Flash (`google-genai`)
