@@ -151,16 +151,25 @@ with tab_upload:
         changed = [f for f in pending if f.stat().st_mtime > since_ts]
         unchanged = [f for f in pending if f.stat().st_mtime <= since_ts]
 
+        def _file_card(f: Path, icon: str):
+            mtime = datetime.fromtimestamp(f.stat().st_mtime).strftime("%m/%d %H:%M")
+            text = f.read_text(encoding="utf-8", errors="replace")
+            first_line = text.split("\n", 1)[0].strip()
+            preview = text[:300].replace("\n", " ").strip()
+            if len(text) > 300:
+                preview += "…"
+            with st.expander(f"{icon} **{f.name}**  —  {first_line}"):
+                st.caption(f"{f.stat().st_size:,} bytes  |  수정: {mtime}")
+                st.text(preview)
+
         if changed:
             st.caption(f"🟢 새로 추가/변경된 파일 ({len(changed)}개)")
             for f in changed:
-                mtime = datetime.fromtimestamp(f.stat().st_mtime).strftime("%m/%d %H:%M")
-                st.text(f"  🆕 {f.name}  ({f.stat().st_size:,} bytes)  수정: {mtime}")
+                _file_card(f, "🆕")
         if unchanged:
             st.caption(f"⚪ 이전 실행 전 파일 ({len(unchanged)}개)")
             for f in unchanged:
-                mtime = datetime.fromtimestamp(f.stat().st_mtime).strftime("%m/%d %H:%M")
-                st.text(f"  📄 {f.name}  ({f.stat().st_size:,} bytes)  수정: {mtime}")
+                _file_card(f, "📄")
         if not changed and not unchanged:
             st.info("대기 중인 파일이 없습니다.")
     else:
