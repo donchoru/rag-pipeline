@@ -3,6 +3,7 @@
 import json
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -14,10 +15,14 @@ sys.path.insert(0, str(Path(__file__).parent))
 import db
 from config import INPUT_DIR, OUTPUT_DIR, ARCHIVE_DIR, ERROR_DIR, TRACE_DIR, SCHEDULE_CRON
 
+PROCESSED_JSONL = OUTPUT_DIR / "processed.jsonl"
+
 st.set_page_config(page_title="RAG Pipeline", page_icon="📄", layout="wide")
 st.title("📄 RAG Pipeline 대시보드")
 
-tab1, tab2, tab3, tab4 = st.tabs(["대시보드", "트레이스", "에러 로그", "설정"])
+tab1, tab_upload, tab_search, tab2, tab3, tab4 = st.tabs(
+    ["대시보드", "📤 업로드", "🔍 검색", "트레이스", "에러 로그", "설정"],
+)
 
 # ── 탭 1: 대시보드 ──
 with tab1:
@@ -66,7 +71,7 @@ with tab1:
 
     # 실행 이력
     st.subheader("실행 이력")
-    runs = db.get_runs(20)
+    runs: list = db.get_runs(20)
     if runs:
         df = pd.DataFrame(runs)
         display_cols = ["run_id", "start_time", "end_time", "total_files", "success_count", "error_count", "status"]
@@ -75,6 +80,136 @@ with tab1:
         st.dataframe(df, use_container_width=True, hide_index=True)
     else:
         st.info("아직 실행 이력이 없습니다.")
+
+# ── 탭: 업로드 ──
+with tab_upload:
+    st.subheader("문서 업로드")
+
+    uploaded_files = st.file_uploader(
+        "`.txt` 파일을 드래그하거나 선택하세요",
+        type=["txt"],
+        accept_multiple_files=True,
+    )
+
+    run_after = st.checkbox("업로드 후 즉시 파이프라인 실행", value=True)
+
+    if uploaded_files:
+        for uf in uploaded_files:
+            dest = INPUT_DIR / uf.name
+            if dest.exists():
+                stem = dest.stem
+                suffix = dest.suffix
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                dest = INPUT_DIR / f"{stem}_{ts}{suffix}"
+            dest.write_bytes(uf.getvalue())
+            st.success(f"저장: `{dest.name}`")
+
+        if run_after:
+            with st.spinner("파이프라인 실행 중…"):
+                try:
+                    result = subprocess.run(
+                        [sys.executable, "pipeline.py"],
+                        capture_output=True, text=True, timeout=600,
+                        cwd=str(Path(__file__).parent),
+                    )
+                    if result.returncode == 0:
+                        st.success(f"파이프라인 완료! {result.stdout.strip()}")
+                    else:
+                        st.error(f"파이프라인 에러: {result.stderr.strip()}")
+                except subprocess.TimeoutExpired:
+                    st.error("타임아웃 (10분 초과)")
+            st.rerun()
+
+    st.divider()
+    st.subheader("대기 파일 목록")
+    pending = sorted(INPUT_DIR.glob("*.txt"))
+    if pending:
+        for f in pending:
+            st.text(f"📄 {f.name}  ({f.stat().st_size:,} bytes)")
+    else:
+        st.info("대기 중인 파일이 없습니다.")
+
+
+# ── 탭: 검색 ──
+@st.cache_data
+def _load_documents() -> list[dict]:
+    """processed.jsonl → 중복 제거된 문서 리스트 (같은 source_file은 최신만)."""
+    if not PROCESSED_JSONL.exists():
+        return []
+    docs_by_source: dict[str, dict] = {}
+    for line in PROCESSED_JSONL.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        doc = json.loads(line)
+        docs_by_source[doc["source_file"]] = doc
+    return list(docs_by_source.values())
+
+
+with tab_search:
+    st.subheader("처리된 문서 검색")
+
+    docs = _load_documents()
+
+    if not docs:
+        st.info("아직 처리된 문서가 없습니다.")
+    else:
+        col_q, col_t = st.columns([2, 1])
+        with col_q:
+            query = st.text_input("🔎 키워드 검색", placeholder="예: 딥러닝, Docker")
+        with col_t:
+            all_topics = sorted({d["metadata"].get("topic", "") for d in docs} - {""})
+            topic_filter = st.multiselect("토픽 필터", all_topics)
+
+        # 필터링
+        filtered = docs
+        if topic_filter:
+            filtered = [d for d in filtered if d["metadata"].get("topic") in topic_filter]
+        if query:
+            q = query.lower()
+            def _match(d: dict) -> bool:
+                meta = d["metadata"]
+                if q in meta.get("title", "").lower():
+                    return True
+                if q in meta.get("summary", "").lower():
+                    return True
+                for kw in meta.get("keywords", []):
+                    if q in kw.lower():
+                        return True
+                for chunk in d.get("chunks", []):
+                    if q in chunk.get("content", "").lower():
+                        return True
+                return False
+            filtered = [d for d in filtered if _match(d)]
+
+        st.caption(f"{len(filtered)}건 / 전체 {len(docs)}건")
+
+        for doc in filtered:
+            meta = doc["metadata"]
+            title = meta.get("title", doc["source_file"])
+            topic = meta.get("topic", "")
+            summary = meta.get("summary", "")
+            keywords = meta.get("keywords", [])
+
+            st.markdown(f"### {title}")
+            if topic:
+                st.caption(f"토픽: **{topic}**")
+            if summary:
+                st.write(summary)
+            if keywords:
+                st.markdown(" ".join(f"`{kw}`" for kw in keywords))
+
+            with st.expander("📦 청크 목록"):
+                for chunk in doc.get("chunks", []):
+                    st.markdown(f"**{chunk.get('heading', chunk['id'])}**")
+                    st.write(chunk["content"])
+                    st.divider()
+
+            with st.expander("📝 전체 마크다운"):
+                st.markdown(doc.get("markdown", ""))
+
+            st.divider()
+
 
 # ── 탭 2: 트레이스 ──
 with tab2:

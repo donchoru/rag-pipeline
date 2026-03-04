@@ -23,8 +23,11 @@ python pipeline.py
 # 스케줄러 (매일 자정 KST)
 python main.py
 
-# 대시보드
+# 대시보드 (로컬)
 streamlit run dashboard.py --server.port 8501
+
+# 대시보드 (LAN/외부 접속 — 고정 IP + 방화벽 8501 오픈 필요)
+streamlit run dashboard.py --server.port 8501 --server.address 0.0.0.0
 ```
 
 ## 흐름
