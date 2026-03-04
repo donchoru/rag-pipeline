@@ -15,6 +15,13 @@ DB_PATH = BASE_DIR / "pipeline_logs.db"
 LLM_MODEL = "gemini-2.0-flash"
 SCHEDULE_CRON = {"hour": 0, "minute": 0}  # 매일 자정 KST
 
+# 청크 설정 파일
+CHUNK_CONFIG_PATH = BASE_DIR / ".chunk_config.json"
+DEFAULT_CHUNK_MIN = 300
+DEFAULT_CHUNK_MAX = 800
+
+SPLIT_THRESHOLD = 10_000  # 이 글자수 이상이면 LLM 자동 분할
+
 CLAW_DB_PATH = BASE_DIR.parent / "claw-manager" / "manager.db"
 AGENT_NAME = "rag-pipeline"
 

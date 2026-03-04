@@ -32,9 +32,10 @@ streamlit run dashboard.py --server.port 8501 --server.address 0.0.0.0
 
 ## 흐름
 1. `input_docs/*.txt` → LLM 구조화 → `output_jsonl/processed.jsonl`
-2. 성공 → `archive_docs/`로 이동
-3. 실패 → `error_docs/`로 이동 + `error_logs` 기록
-4. `pipeline_logs.db`에 실행 이력 저장
+2. 원본 파일은 `input_docs/`에 **항상 유지** (이동하지 않음)
+3. 파일 편집 시 → 이전 버전이 `archive_docs/`에 타임스탬프 백업
+4. 실패 → `error_logs` DB 기록 (파일 이동 없음)
+5. `pipeline_logs.db`에 실행 이력 저장
 
 ## 주요 기능
 - **웹 업로드**: 브라우저에서 .txt 드래그 앤 드롭 → 즉시 파이프라인 실행

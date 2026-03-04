@@ -6,3 +6,6 @@ pipeline_logs.db-wal
 pipeline_logs.db-shm
 archive_docs/*.txt
 error_docs/*.txt
+.selected.json
+.mode.json
+.chunk_config.json

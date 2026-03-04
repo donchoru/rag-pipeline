@@ -1,0 +1,60 @@
+{
+  "run_id": "23f2e51d",
+  "filename": "IT일반/sample_cloud_infra.txt",
+  "mode": "preserve",
+  "timestamp": "2026-03-04T15:35:06.678959+00:00",
+  "model": "gemini-2.0-flash",
+  "input_chars": 910,
+  "input_tokens": 828,
+  "output_tokens": 1717,
+  "latency_ms": 12370,
+  "reasoning": {
+    "document_analysis": "문서는 클라우드 인프라 구축에 대한 기본적인 개념과 기술들을 소개하고 있습니다. IaaS, PaaS, SaaS 모델, 컨테이너 기술, CI/CD 파이프라인, IaC 등 클라우드 환경에서 중요한 요소들을 다루고 있습니다.",
+    "chunk_strategy": "문서의 각 섹션(IaaS vs PaaS vs SaaS, 컨테이너와 오케스트레이션, CI/CD 파이프라인, IaC)을 기준으로 청크를 분할했습니다. 각 섹션은 독립적인 주제를 다루고 있으며, 내용의 응집성을 유지하기 위해 섹션 내부의 문장들을 하나의 청크로 묶었습니다.",
+    "chunk_details": [
+      {
+        "chunk_id": "chunk_001",
+        "why": "클라우드 컴퓨팅의 기본 개념과 주요 클라우드 서비스 제공자를 소개하는 부분으로, 문서의 서론 역할을 합니다. 짧지만 핵심적인 정보를 담고 있어 독립적인 청크로 분리했습니다."
+      },
+      {
+        "chunk_id": "chunk_002",
+        "why": "IaaS, PaaS, SaaS 모델을 비교 설명하는 부분입니다. 각 모델의 정의와 특징, 예시를 포함하여 하나의 의미 있는 내용 단위를 구성하므로 청크로 분리했습니다."
+      },
+      {
+        "chunk_id": "chunk_003",
+        "why": "컨테이너 기술(Docker)과 컨테이너 오케스트레이션(Kubernetes)을 설명하는 부분입니다. Docker와 Kubernetes는 밀접하게 연관된 기술이므로 함께 묶어 하나의 청크로 구성했습니다."
+      },
+      {
+        "chunk_id": "chunk_004",
+        "why": "CI/CD 파이프라인의 개념과 주요 도구를 소개하는 부분입니다. CI와 CD의 정의, 그리고 관련 도구들을 설명하며, 하나의 완결된 내용을 전달하므로 청크로 분리했습니다."
+      },
+      {
+        "chunk_id": "chunk_005",
+        "why": "IaC의 개념과 관련 도구를 소개하는 부분입니다. IaC는 클라우드 인프라 관리에 중요한 개념이므로 독립적인 청크로 분리했습니다."
+      }
+    ],
+    "metadata_rationale": "title은 문서의 주제를 명확하게 나타내도록 '클라우드 인프라 구축 가이드'로 설정했습니다. topic은 '클라우드 컴퓨팅'으로 설정하여 문서의 주제 영역을 명확히 했습니다. summary는 문서의 핵심 내용을 3줄로 요약했습니다. keywords는 문서에서 가장 중요한 단어들을 추출하여 설정했습니다."
+  },
+  "output_summary": {
+    "chunk_count": 5,
+    "chunk_sizes": [
+      73,
+      329,
+      202,
+      147,
+      86
+    ],
+    "metadata": {
+      "title": "클라우드 인프라 구축 가이드",
+      "topic": "클라우드 컴퓨팅",
+      "summary": "클라우드 컴퓨팅은 인터넷을 통해 컴퓨팅 자원을 제공하는 모델이며, IaaS, PaaS, SaaS 등의 서비스 모델이 존재한다. 컨테이너 기술, CI/CD 파이프라인, IaC 등을 통해 효율적인 클라우드 인프라 구축이 가능하다. AWS, GCP, Azure가 대표적인 클라우드 서비스 제공자이다.",
+      "keywords": [
+        "클라우드",
+        "IaaS",
+        "PaaS",
+        "SaaS",
+        "IaC"
+      ]
+    }
+  }
+}
