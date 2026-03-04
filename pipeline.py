@@ -50,7 +50,7 @@ def _run_pipeline_locked(since: float | None, lock_fp) -> str:
     run_id = str(uuid.uuid4())[:8]
 
     # 1. 입력 파일 수집
-    txt_files = sorted(INPUT_DIR.glob("*.txt"))
+    txt_files = sorted(INPUT_DIR.rglob("*.txt"))
     if since is not None:
         txt_files = [f for f in txt_files if f.stat().st_mtime > since]
     total = len(txt_files)
@@ -77,14 +77,15 @@ def _run_pipeline_locked(since: float | None, lock_fp) -> str:
 
     # 4. 각 파일 처리
     for filepath in txt_files:
-        filename = filepath.name
+        rel_path = filepath.relative_to(INPUT_DIR)
+        filename = str(rel_path)
         try:
             text = filepath.read_text(encoding="utf-8")
             if not text.strip():
                 raise ValueError("빈 파일")
 
             # LLM 호출 → 결과 + 트레이스
-            output = llm.structure_document(text, filename)
+            output = llm.structure_document(text, filepath.name)
             result = output["result"]
             trace = output["trace"]
 
@@ -124,8 +125,10 @@ def _run_pipeline_locked(since: float | None, lock_fp) -> str:
             with open(trace_path, "w", encoding="utf-8") as f:
                 json.dump(trace_record, f, ensure_ascii=False, indent=2)
 
-            # 원본 → archive
-            shutil.move(str(filepath), str(ARCHIVE_DIR / filename))
+            # 원본 → archive (폴더 구조 유지)
+            archive_dest = ARCHIVE_DIR / rel_path
+            archive_dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(filepath), str(archive_dest))
             success_count += 1
             logger.info(f"[{run_id}] ✓ {filename} (trace → {trace_path.name})")
 
@@ -137,9 +140,11 @@ def _run_pipeline_locked(since: float | None, lock_fp) -> str:
 
             db.log_error(run_id, filename, error_type, error_msg)
 
-            # 원본 → error
+            # 원본 → error (폴더 구조 유지)
             try:
-                shutil.move(str(filepath), str(ERROR_DIR / filename))
+                error_dest = ERROR_DIR / rel_path
+                error_dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(filepath), str(error_dest))
             except Exception:
                 pass
 

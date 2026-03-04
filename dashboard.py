@@ -53,8 +53,8 @@ with tab1:
     st.divider()
 
     # 수동 실행 — 변경/전체 파일 카운트
-    all_pending = sorted(INPUT_DIR.glob("*.txt"))
-    all_archived = sorted(ARCHIVE_DIR.glob("*.txt"))
+    all_pending = sorted(INPUT_DIR.rglob("*.txt"))
+    all_archived = sorted(ARCHIVE_DIR.rglob("*.txt"))
     _last = db.get_last_run()
     _since = 0.0
     if _last and _last.get("start_time"):
@@ -160,7 +160,7 @@ with tab_upload:
 
     st.divider()
     st.subheader("대기 파일 목록")
-    pending = sorted(INPUT_DIR.glob("*.txt"))
+    pending = sorted(INPUT_DIR.rglob("*.txt"))
     if pending:
         last = db.get_last_run()
         since_ts = 0.0
@@ -170,14 +170,16 @@ with tab_upload:
         changed = [f for f in pending if f.stat().st_mtime > since_ts]
         unchanged = [f for f in pending if f.stat().st_mtime <= since_ts]
 
-        def _file_card(f: Path, icon: str):
+        def _file_card(f: Path, icon: str, base_dir: Path = INPUT_DIR):
+            rel = f.relative_to(base_dir)
+            display_name = str(rel) if str(rel) != f.name else f.name
             mtime = datetime.fromtimestamp(f.stat().st_mtime).strftime("%m/%d %H:%M")
             text = f.read_text(encoding="utf-8", errors="replace")
             first_line = text.split("\n", 1)[0].strip()
             preview = text[:300].replace("\n", " ").strip()
             if len(text) > 300:
                 preview += "…"
-            with st.expander(f"{icon} **{f.name}**  —  {first_line}"):
+            with st.expander(f"{icon} **{display_name}**  —  {first_line}"):
                 st.caption(f"{f.stat().st_size:,} bytes  |  수정: {mtime}")
                 st.text(preview)
 
@@ -197,12 +199,16 @@ with tab_upload:
     # 파일 편집기
     st.divider()
     st.subheader("파일 편집기")
-    all_editable = sorted(INPUT_DIR.glob("*.txt")) + sorted(ARCHIVE_DIR.glob("*.txt"))
+    all_editable = sorted(INPUT_DIR.rglob("*.txt")) + sorted(ARCHIVE_DIR.rglob("*.txt"))
     if all_editable:
         labels = []
         for f in all_editable:
-            folder = "input" if f.parent == INPUT_DIR else "archive"
-            labels.append(f"[{folder}] {f.name}")
+            if INPUT_DIR in f.parents or f.parent == INPUT_DIR:
+                rel = f.relative_to(INPUT_DIR)
+                labels.append(f"[input] {rel}")
+            else:
+                rel = f.relative_to(ARCHIVE_DIR)
+                labels.append(f"[archive] {rel}")
         selected_idx = st.selectbox(
             "파일 선택", range(len(all_editable)),
             format_func=lambda i: labels[i], key="editor_file",
