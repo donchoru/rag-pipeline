@@ -211,7 +211,7 @@ with tab_upload:
         original = sel_file.read_text(encoding="utf-8", errors="replace")
 
         edited = st.text_area(
-            "내용", value=original, height=400, key="editor_content",
+            "내용", value=original, height=400, key=f"editor_{sel_file.name}",
         )
 
         col_save, col_new = st.columns(2)
