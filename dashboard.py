@@ -104,7 +104,7 @@ with tab1:
         display_cols = ["run_id", "start_time", "end_time", "total_files", "success_count", "error_count", "status"]
         df = df[[c for c in display_cols if c in df.columns]]
         df.columns = ["Run ID", "시작", "종료", "전체", "성공", "에러", "상태"]
-        st.dataframe(df, use_container_width=True, hide_index=True)
+        st.dataframe(df, width="stretch", hide_index=True)
     else:
         st.info("아직 실행 이력이 없습니다.")
 
@@ -398,7 +398,7 @@ with tab3:
         display_cols = ["run_id", "filename", "error_type", "error_message", "created_at"]
         df = df[[c for c in display_cols if c in df.columns]]
         df.columns = ["Run ID", "파일명", "에러 타입", "에러 메시지", "시간"]
-        st.dataframe(df, use_container_width=True, hide_index=True)
+        st.dataframe(df, width="stretch", hide_index=True)
     else:
         st.info("에러 기록이 없습니다.")
 
