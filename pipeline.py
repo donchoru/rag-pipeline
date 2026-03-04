@@ -13,12 +13,18 @@ from llm import LLMClient
 logger = logging.getLogger(__name__)
 
 
-def run_pipeline() -> str:
-    """전체 파이프라인 실행. Returns run_id."""
+def run_pipeline(since: float | None = None) -> str:
+    """전체 파이프라인 실행. Returns run_id.
+
+    Args:
+        since: Unix timestamp. 지정 시 이 시각 이후 변경된 파일만 처리.
+    """
     run_id = str(uuid.uuid4())[:8]
 
     # 1. 입력 파일 수집
     txt_files = sorted(INPUT_DIR.glob("*.txt"))
+    if since is not None:
+        txt_files = [f for f in txt_files if f.stat().st_mtime > since]
     total = len(txt_files)
 
     logger.info(f"[{run_id}] 파이프라인 시작 — {total}개 파일")
@@ -118,9 +124,17 @@ def run_pipeline() -> str:
 
 
 if __name__ == "__main__":
+    import argparse
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",
     )
-    run_id = run_pipeline()
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--since", type=float, default=None,
+                        help="Unix timestamp — 이 시각 이후 변경된 파일만 처리")
+    args = parser.parse_args()
+
+    run_id = run_pipeline(since=args.since)
     print(f"Run ID: {run_id}")

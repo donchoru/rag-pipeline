@@ -53,11 +53,24 @@ with tab1:
     st.divider()
 
     # 수동 실행
+    run_mode = st.radio(
+        "실행 모드",
+        ["변경된 파일만", "전체 실행"],
+        horizontal=True,
+        help="변경된 파일만: 마지막 실행 이후 추가/수정된 파일만 처리\n전체 실행: input_docs의 모든 파일 처리",
+    )
+
     if st.button("🚀 지금 즉시 실행", type="primary"):
+        cmd = [sys.executable, "pipeline.py"]
+        if run_mode == "변경된 파일만":
+            last = db.get_last_run()
+            if last and last.get("start_time"):
+                since_ts = datetime.fromisoformat(last["start_time"]).timestamp()
+                cmd += ["--since", str(since_ts)]
         with st.spinner("파이프라인 실행 중…"):
             try:
                 result = subprocess.run(
-                    [sys.executable, "pipeline.py"],
+                    cmd,
                     capture_output=True, text=True, timeout=600,
                     cwd=str(Path(__file__).parent),
                 )
@@ -94,6 +107,7 @@ with tab_upload:
     run_after = st.checkbox("업로드 후 즉시 파이프라인 실행", value=True)
 
     if uploaded_files:
+        upload_ts = datetime.now().timestamp()
         for uf in uploaded_files:
             dest = INPUT_DIR / uf.name
             if dest.exists():
@@ -108,7 +122,8 @@ with tab_upload:
             with st.spinner("파이프라인 실행 중…"):
                 try:
                     result = subprocess.run(
-                        [sys.executable, "pipeline.py"],
+                        [sys.executable, "pipeline.py",
+                         "--since", str(upload_ts - 5)],
                         capture_output=True, text=True, timeout=600,
                         cwd=str(Path(__file__).parent),
                     )
