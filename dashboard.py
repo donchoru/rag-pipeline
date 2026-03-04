@@ -39,7 +39,7 @@ st.set_page_config(page_title="FLOPI", page_icon="📄", layout="wide")
 st.title("FLOPI — RAG Pipeline 대시보드")
 
 tab1, tab_upload, tab_search, tab_compare, tab2, tab3, tab4 = st.tabs(
-    ["대시보드", "📂 원본 관리", "🔍 검색", "🔄 비교", "트레이스", "에러 로그", "설정"],
+    ["대시보드", "📂 원본 관리", "📋 처리 결과", "🔄 비교", "트레이스", "에러 로그", "설정"],
 )
 
 # ── 탭 1: 대시보드 ──
@@ -546,24 +546,54 @@ def _load_documents(_mtime: float = 0) -> list[dict]:
 
 
 with tab_search:
-    st.subheader("처리된 문서 검색")
+    st.subheader("처리 결과")
 
     docs = _load_documents(_jsonl_mtime())
 
     if not docs:
         st.info("아직 처리된 문서가 없습니다.")
     else:
-        col_q, col_t = st.columns([2, 1])
-        with col_q:
-            query = st.text_input("🔎 키워드 검색", placeholder="예: 딥러닝, Docker")
-        with col_t:
-            all_topics = sorted({d["metadata"].get("topic", "") for d in docs} - {""})
-            topic_filter = st.multiselect("토픽 필터", all_topics)
+        # 폴더별 그룹핑
+        from collections import defaultdict as _ddict
+        _result_folders: dict[str, list[dict]] = _ddict(list)
+        for d in docs:
+            folder = str(Path(d["source_file"]).parent)
+            if folder == ".":
+                folder = ""
+            _result_folders[folder].append(d)
 
-        # 필터링
-        filtered = docs
-        if topic_filter:
-            filtered = [d for d in filtered if d["metadata"].get("topic") in topic_filter]
+        # 폴더 선택 UI
+        _folder_labels = []
+        for fk in sorted(_result_folders.keys()):
+            cnt = len(_result_folders[fk])
+            if fk == "":
+                _folder_labels.append(f"/ (루트) — {cnt}건")
+            else:
+                _folder_labels.append(f"📁 {fk}/ — {cnt}건")
+        _folder_labels.insert(0, f"전체 — {len(docs)}건")
+
+        col_folder, col_q = st.columns([1.5, 2])
+        with col_folder:
+            _sel_folder = st.selectbox("폴더", _folder_labels, key="result_folder")
+        with col_q:
+            query = st.text_input("🔎 키워드 필터", placeholder="예: 딥러닝, Docker",
+                                  key="result_query")
+
+        # 선택된 폴더의 문서 추출
+        if _sel_folder.startswith("전체"):
+            _folder_docs = docs
+        elif _sel_folder.startswith("/"):
+            _folder_docs = _result_folders.get("", [])
+        else:
+            _fkey = _sel_folder.split("📁 ", 1)[1].split("/", 1)[0]
+            # 폴더명에서 정확한 키 매칭
+            _folder_docs = []
+            for fk, fd in _result_folders.items():
+                if fk == _fkey or fk.startswith(_fkey):
+                    _folder_docs.extend(fd)
+
+        # 키워드 필터
+        filtered = _folder_docs
         if query:
             q = query.lower()
             def _match(d: dict) -> bool:
@@ -581,41 +611,58 @@ with tab_search:
                 return False
             filtered = [d for d in filtered if _match(d)]
 
-        st.caption(f"{len(filtered)}건 / 전체 {len(docs)}건")
+        st.caption(f"{len(filtered)}건" + (f" (검색 결과)" if query else ""))
 
-        for doc in filtered:
-            meta = doc["metadata"]
-            title = meta.get("title", doc["source_file"])
+        # 문서별 소스 파일 그룹핑 (같은 파일의 섹션들을 묶어서 표시)
+        _by_source: dict[str, list[dict]] = _ddict(list)
+        for d in filtered:
+            _by_source[d["source_file"]].append(d)
+
+        for src_file, src_docs in _by_source.items():
+            fname = Path(src_file).name
+            first = src_docs[0]
+            meta = first["metadata"]
             topic = meta.get("topic", "")
-            summary = meta.get("summary", "")
-            keywords = meta.get("keywords", [])
-            section = doc.get("section")
+            chunk_total = sum(len(d.get("chunks", [])) for d in src_docs)
+            section_info = f" · {len(src_docs)}개 섹션" if len(src_docs) > 1 else ""
+            topic_tag = f" · `{topic}`" if topic else ""
 
-            if section:
-                st.markdown(f"### {title}  `[{section}]`")
-            else:
-                st.markdown(f"### {title}")
-            doc_mode = doc.get("mode", "preserve")
-            mode_badge = "🔀 재구성" if doc_mode == "reorganize" else "📄 원문 유지"
-            if topic:
-                st.caption(f"토픽: **{topic}** · {mode_badge}")
-            else:
-                st.caption(mode_badge)
-            if summary:
-                st.write(summary)
-            if keywords:
-                st.markdown(" ".join(f"`{kw}`" for kw in keywords))
+            with st.expander(
+                f"**{fname}**{topic_tag}{section_info} · {chunk_total}개 청크",
+                expanded=False,
+            ):
+                for doc in src_docs:
+                    meta = doc["metadata"]
+                    title = meta.get("title", doc["source_file"])
+                    summary = meta.get("summary", "")
+                    keywords = meta.get("keywords", [])
+                    section = doc.get("section")
+                    doc_mode = doc.get("mode", "preserve")
+                    mode_badge = "🔀" if doc_mode == "reorganize" else "📄"
 
-            with st.expander("📦 청크 목록"):
-                for chunk in doc.get("chunks", []):
-                    st.markdown(f"**{chunk.get('heading', chunk['id'])}**")
-                    st.write(chunk["content"])
-                    st.divider()
+                    if section:
+                        st.markdown(f"##### {mode_badge} {title}  `[{section}]`")
+                    else:
+                        st.markdown(f"##### {mode_badge} {title}")
 
-            with st.expander("📝 전체 마크다운"):
-                st.markdown(doc.get("markdown", ""))
+                    if summary:
+                        st.write(summary)
+                    if keywords:
+                        st.markdown(" ".join(f"`{kw}`" for kw in keywords))
 
-            st.divider()
+                    col_chunks, col_md = st.columns(2)
+                    with col_chunks:
+                        with st.container(height=400):
+                            for chunk in doc.get("chunks", []):
+                                st.markdown(f"**{chunk.get('heading', chunk['id'])}**")
+                                st.write(chunk["content"])
+                                st.divider()
+                    with col_md:
+                        with st.container(height=400):
+                            st.markdown(doc.get("markdown", ""))
+
+                    if len(src_docs) > 1:
+                        st.divider()
 
 
 # ── 탭: 비교 ──

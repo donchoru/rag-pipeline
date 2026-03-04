@@ -184,6 +184,18 @@ class LLMClient:
 
         return {"result": parsed, "trace": trace}
 
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        """Gemini text-embedding-004로 텍스트 리스트 임베딩.
+
+        Returns:
+            768차원 벡터 리스트 (입력 texts와 동일 순서/길이).
+        """
+        result = self._client.models.embed_content(
+            model="text-embedding-004",
+            contents=texts,
+        )
+        return [e.values for e in result.embeddings]
+
     def split_document(self, text: str, filename: str,
                        max_chars: int = SPLIT_THRESHOLD) -> list[dict]:
         """대용량 문서를 논리적 섹션으로 분할.
