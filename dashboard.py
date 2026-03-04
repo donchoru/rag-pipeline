@@ -167,32 +167,40 @@ with tab_upload:
         if last and last.get("start_time"):
             since_ts = datetime.fromisoformat(last["start_time"]).timestamp()
 
-        changed = [f for f in pending if f.stat().st_mtime > since_ts]
-        unchanged = [f for f in pending if f.stat().st_mtime <= since_ts]
+        # 폴더별로 그룹핑
+        from collections import defaultdict
+        folders: dict[str, list[Path]] = defaultdict(list)
+        for f in pending:
+            rel = f.relative_to(INPUT_DIR)
+            folder = str(rel.parent) if rel.parent != Path(".") else ""
+            folders[folder].append(f)
 
-        def _file_card(f: Path, icon: str, base_dir: Path = INPUT_DIR):
-            rel = f.relative_to(base_dir)
-            display_name = str(rel) if str(rel) != f.name else f.name
+        def _file_line(f: Path):
+            is_new = f.stat().st_mtime > since_ts
+            icon = "🆕" if is_new else "📄"
             mtime = datetime.fromtimestamp(f.stat().st_mtime).strftime("%m/%d %H:%M")
             text = f.read_text(encoding="utf-8", errors="replace")
             first_line = text.split("\n", 1)[0].strip()
             preview = text[:300].replace("\n", " ").strip()
             if len(text) > 300:
                 preview += "…"
-            with st.expander(f"{icon} **{display_name}**  —  {first_line}"):
+            with st.expander(f"{icon} **{f.name}**  —  {first_line}"):
                 st.caption(f"{f.stat().st_size:,} bytes  |  수정: {mtime}")
                 st.text(preview)
 
-        if changed:
-            st.caption(f"🟢 새로 추가/변경된 파일 ({len(changed)}개)")
-            for f in changed:
-                _file_card(f, "🆕")
-        if unchanged:
-            st.caption(f"⚪ 이전 실행 전 파일 ({len(unchanged)}개)")
-            for f in unchanged:
-                _file_card(f, "📄")
-        if not changed and not unchanged:
-            st.info("대기 중인 파일이 없습니다.")
+        for folder_name in sorted(folders.keys()):
+            files = folders[folder_name]
+            new_count = sum(1 for f in files if f.stat().st_mtime > since_ts)
+            badge = f"  (🆕 {new_count}개)" if new_count else ""
+
+            if folder_name:
+                with st.expander(f"📁 **{folder_name}/**  —  {len(files)}개 파일{badge}", expanded=True):
+                    for f in files:
+                        _file_line(f)
+            else:
+                st.caption(f"📄 루트 파일 ({len(files)}개){badge}")
+                for f in files:
+                    _file_line(f)
     else:
         st.info("대기 중인 파일이 없습니다.")
 
