@@ -4,6 +4,5 @@ __pycache__/
 pipeline_logs.db
 pipeline_logs.db-wal
 pipeline_logs.db-shm
-output_jsonl/*.jsonl
 archive_docs/*.txt
 error_docs/*.txt
