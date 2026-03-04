@@ -1,16 +1,24 @@
 """Core 파이프라인 — run_pipeline()."""
 
+import fcntl
 import json
 import logging
 import shutil
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 
-from config import INPUT_DIR, OUTPUT_DIR, ARCHIVE_DIR, ERROR_DIR, TRACE_DIR
+from config import INPUT_DIR, OUTPUT_DIR, ARCHIVE_DIR, ERROR_DIR, TRACE_DIR, BASE_DIR
 import db
 from llm import LLMClient
 
 logger = logging.getLogger(__name__)
+
+LOCK_FILE = BASE_DIR / ".pipeline.lock"
+
+
+class PipelineBusy(RuntimeError):
+    """다른 파이프라인이 실행 중."""
 
 
 def run_pipeline(since: float | None = None) -> str:
@@ -18,7 +26,27 @@ def run_pipeline(since: float | None = None) -> str:
 
     Args:
         since: Unix timestamp. 지정 시 이 시각 이후 변경된 파일만 처리.
+    Raises:
+        PipelineBusy: 다른 파이프라인이 이미 실행 중일 때.
     """
+    # 0. 동시 실행 방지 (file lock)
+    lock_fp = open(LOCK_FILE, "w")
+    try:
+        fcntl.flock(lock_fp, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        lock_fp.close()
+        raise PipelineBusy("다른 사용자가 파이프라인을 실행 중입니다. 잠시 후 다시 시도하세요.")
+
+    try:
+        return _run_pipeline_locked(since, lock_fp)
+    finally:
+        fcntl.flock(lock_fp, fcntl.LOCK_UN)
+        lock_fp.close()
+        LOCK_FILE.unlink(missing_ok=True)
+
+
+def _run_pipeline_locked(since: float | None, lock_fp) -> str:
+    """락 획득 후 실제 파이프라인 실행."""
     run_id = str(uuid.uuid4())[:8]
 
     # 1. 입력 파일 수집

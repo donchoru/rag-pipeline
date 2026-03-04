@@ -70,18 +70,23 @@ with tab1:
              "전체 재실행: 이미 처리된 archive 파일까지 전부 다시 처리",
     )
 
-    if st.button("🚀 지금 즉시 실행", type="primary"):
+    _lock_file = Path(__file__).parent / ".pipeline.lock"
+    _is_locked = _lock_file.exists()
+
+    if _is_locked:
+        st.warning("🔒 다른 사용자가 파이프라인을 실행 중입니다. 완료 후 다시 시도하세요.")
+
+    if st.button("🚀 지금 즉시 실행", type="primary", disabled=_is_locked):
         cmd = [sys.executable, "pipeline.py"]
         if run_mode.startswith("변경된 파일만") and _since > 0:
             cmd += ["--since", str(_since)]
         elif run_mode.startswith("전체 재실행"):
-            # archive → input_docs로 복사해서 재처리
             import shutil
             for af in all_archived:
                 dest = INPUT_DIR / af.name
                 if not dest.exists():
                     shutil.copy2(str(af), str(dest))
-        with st.spinner("파이프라인 실행 중…"):
+        with st.spinner("파이프라인 실행 중… (다른 사용자는 대기)"):
             try:
                 result = subprocess.run(
                     cmd,
@@ -90,6 +95,8 @@ with tab1:
                 )
                 if result.returncode == 0:
                     st.success(f"완료! {result.stdout.strip()}")
+                elif "PipelineBusy" in (result.stderr or ""):
+                    st.warning("다른 사용자가 실행 중입니다. 잠시 후 다시 시도하세요.")
                 else:
                     st.error(f"에러: {result.stderr.strip()}")
             except subprocess.TimeoutExpired:
@@ -143,6 +150,8 @@ with tab_upload:
                     )
                     if result.returncode == 0:
                         st.success(f"파이프라인 완료! {result.stdout.strip()}")
+                    elif "PipelineBusy" in (result.stderr or ""):
+                        st.warning("다른 사용자가 파이프라인 실행 중입니다. 파일은 저장되었으니, 완료 후 대시보드에서 실행하세요.")
                     else:
                         st.error(f"파이프라인 에러: {result.stderr.strip()}")
                 except subprocess.TimeoutExpired:
