@@ -52,25 +52,35 @@ with tab1:
 
     st.divider()
 
-    # 수동 실행 — 변경 파일 카운트
+    # 수동 실행 — 변경/전체 파일 카운트
     all_pending = sorted(INPUT_DIR.glob("*.txt"))
+    all_archived = sorted(ARCHIVE_DIR.glob("*.txt"))
     _last = db.get_last_run()
     _since = 0.0
     if _last and _last.get("start_time"):
         _since = datetime.fromisoformat(_last["start_time"]).timestamp()
     changed_count = sum(1 for f in all_pending if f.stat().st_mtime > _since)
+    total_count = len(all_pending) + len(all_archived)
 
     run_mode = st.radio(
         "실행 모드",
-        [f"변경된 파일만 ({changed_count}개)", f"전체 실행 ({len(all_pending)}개)"],
+        [f"변경된 파일만 ({changed_count}개)", f"전체 재실행 ({total_count}개)"],
         horizontal=True,
-        help="변경된 파일만: 마지막 실행 이후 추가/수정된 파일만 처리\n전체 실행: input_docs의 모든 파일 처리",
+        help="변경된 파일만: 마지막 실행 이후 새로 추가된 파일만 처리\n"
+             "전체 재실행: 이미 처리된 archive 파일까지 전부 다시 처리",
     )
 
     if st.button("🚀 지금 즉시 실행", type="primary"):
         cmd = [sys.executable, "pipeline.py"]
         if run_mode.startswith("변경된 파일만") and _since > 0:
             cmd += ["--since", str(_since)]
+        elif run_mode.startswith("전체 재실행"):
+            # archive → input_docs로 복사해서 재처리
+            import shutil
+            for af in all_archived:
+                dest = INPUT_DIR / af.name
+                if not dest.exists():
+                    shutil.copy2(str(af), str(dest))
         with st.spinner("파이프라인 실행 중…"):
             try:
                 result = subprocess.run(
