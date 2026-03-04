@@ -119,6 +119,19 @@ with tab1:
 with tab_upload:
     st.subheader("문서 업로드")
 
+    # 폴더 선택
+    existing_folders = sorted({
+        str(f.relative_to(INPUT_DIR).parent)
+        for f in INPUT_DIR.rglob("*.txt")
+        if f.relative_to(INPUT_DIR).parent != Path(".")
+    })
+    folder_options = ["/ (루트)"] + [f"📁 {d}" for d in existing_folders] + ["➕ 새 폴더 만들기"]
+    folder_choice = st.selectbox("업로드 폴더", folder_options)
+
+    new_folder_name = ""
+    if folder_choice == "➕ 새 폴더 만들기":
+        new_folder_name = st.text_input("폴더명", placeholder="예: 반도체/공정")
+
     uploaded_files = st.file_uploader(
         "`.txt` 파일을 드래그하거나 선택하세요",
         type=["txt"],
@@ -128,16 +141,26 @@ with tab_upload:
     run_after = st.checkbox("업로드 후 즉시 파이프라인 실행", value=True)
 
     if uploaded_files:
+        # 저장 폴더 결정
+        if folder_choice == "➕ 새 폴더 만들기" and new_folder_name:
+            upload_dir = INPUT_DIR / new_folder_name
+        elif folder_choice == "/ (루트)":
+            upload_dir = INPUT_DIR
+        else:
+            upload_dir = INPUT_DIR / folder_choice.replace("📁 ", "")
+        upload_dir.mkdir(parents=True, exist_ok=True)
+
         upload_ts = datetime.now().timestamp()
         for uf in uploaded_files:
-            dest = INPUT_DIR / uf.name
+            dest = upload_dir / uf.name
             if dest.exists():
                 stem = dest.stem
                 suffix = dest.suffix
                 ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                dest = INPUT_DIR / f"{stem}_{ts}{suffix}"
+                dest = upload_dir / f"{stem}_{ts}{suffix}"
             dest.write_bytes(uf.getvalue())
-            st.success(f"저장: `{dest.name}`")
+            rel = dest.relative_to(INPUT_DIR)
+            st.success(f"저장: `{rel}`")
 
         if run_after:
             with st.spinner("파이프라인 실행 중…"):
