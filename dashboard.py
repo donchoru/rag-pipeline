@@ -185,6 +185,44 @@ with tab_upload:
     else:
         st.info("대기 중인 파일이 없습니다.")
 
+    # 파일 편집기
+    st.divider()
+    st.subheader("파일 편집기")
+    all_editable = sorted(INPUT_DIR.glob("*.txt")) + sorted(ARCHIVE_DIR.glob("*.txt"))
+    if all_editable:
+        labels = []
+        for f in all_editable:
+            folder = "input" if f.parent == INPUT_DIR else "archive"
+            labels.append(f"[{folder}] {f.name}")
+        selected_idx = st.selectbox(
+            "파일 선택", range(len(all_editable)),
+            format_func=lambda i: labels[i], key="editor_file",
+        )
+        sel_file = all_editable[selected_idx]
+        original = sel_file.read_text(encoding="utf-8", errors="replace")
+
+        edited = st.text_area(
+            "내용", value=original, height=400, key="editor_content",
+        )
+
+        col_save, col_new = st.columns(2)
+        with col_save:
+            if st.button("💾 저장", disabled=(edited == original)):
+                sel_file.write_text(edited, encoding="utf-8")
+                st.success(f"`{sel_file.name}` 저장 완료!")
+                st.rerun()
+        with col_new:
+            new_name = st.text_input("새 파일명 (.txt)", placeholder="new_document.txt", key="new_filename")
+            if st.button("📝 새 파일로 저장") and new_name:
+                if not new_name.endswith(".txt"):
+                    new_name += ".txt"
+                new_path = INPUT_DIR / new_name
+                new_path.write_text(edited, encoding="utf-8")
+                st.success(f"`{new_name}` 생성 완료!")
+                st.rerun()
+    else:
+        st.info("편집할 파일이 없습니다.")
+
 
 # ── 탭: 검색 ──
 @st.cache_data
