@@ -1,0 +1,94 @@
+{
+  "run_id": "7e2feb2c",
+  "filename": "sample_security_basics.txt",
+  "timestamp": "2026-03-04T12:39:02.185723+00:00",
+  "model": "gemini-2.0-flash",
+  "input_chars": 2776,
+  "input_tokens": 1653,
+  "output_tokens": 4129,
+  "latency_ms": 26860,
+  "reasoning": {
+    "document_analysis": "문서는 정보보안의 기초 개념, 인증 및 인가 방식, 웹 보안 취약점, 암호화 기법, 그리고 보안 운영에 대한 내용을 포괄적으로 다루고 있습니다. 각 섹션은 특정 보안 주제에 대한 설명과 함께 실무 적용 방안 및 대응 전략을 제시합니다.",
+    "chunk_strategy": "문서의 각 섹션을 기준으로 청크를 분할했습니다. 각 섹션은 독립적인 주제를 다루고 있으며, 내용의 응집성을 유지하기 위해 섹션 내부에서는 추가적인 분할을 하지 않았습니다. 각 청크는 300~800자 내외의 길이를 유지하도록 했습니다.",
+    "chunk_details": [
+      {
+        "chunk_id": "chunk_001",
+        "why": "정보보안의 기본 원칙인 CIA 삼각형을 소개하고, 각 요소(기밀성, 무결성, 가용성)에 대한 정의를 설명하는 부분입니다. 핵심 개념을 명확히 전달하기 위해 하나의 청크로 구성했습니다."
+      },
+      {
+        "chunk_id": "chunk_002",
+        "why": "인증과 인가에 대한 설명과 함께, 다중 인증(MFA), OAuth 2.0, OpenID Connect(OIDC), JWT(JSON Web Token) 등 다양한 인증 기술을 소개하는 부분입니다. 인증 방식의 다양성을 보여주기 위해 하나의 청크로 묶었습니다."
+      },
+      {
+        "chunk_id": "chunk_003",
+        "why": "인가(Authorization)의 개념과 RBAC(Role-Based Access Control), ABAC(Attribute-Based Access Control) 등 다양한 인가 방식을 설명하는 부분입니다. 인증과 인가를 구분하고, 다양한 인가 방식에 대한 이해를 돕기 위해 별도의 청크로 구성했습니다."
+      },
+      {
+        "chunk_id": "chunk_004",
+        "why": "OWASP Top 10 웹 보안 취약점 중 SQL Injection에 대한 설명과 대응 방안을 제시하는 부분입니다. SQL Injection의 위험성과 예방책을 명확히 전달하기 위해 하나의 청크로 구성했습니다."
+      },
+      {
+        "chunk_id": "chunk_005",
+        "why": "OWASP Top 10 웹 보안 취약점 중 XSS(Cross-Site Scripting)에 대한 설명과 대응 방안을 제시하는 부분입니다. XSS 공격의 유형과 예방책을 명확히 전달하기 위해 하나의 청크로 구성했습니다."
+      },
+      {
+        "chunk_id": "chunk_006",
+        "why": "OWASP Top 10 웹 보안 취약점 중 CSRF(Cross-Site Request Forgery)에 대한 설명과 대응 방안을 제시하는 부분입니다. CSRF 공격의 위험성과 예방책을 명확히 전달하기 위해 하나의 청크로 구성했습니다."
+      },
+      {
+        "chunk_id": "chunk_007",
+        "why": "대칭 암호화(AES-256)에 대한 설명과 키 관리의 중요성을 강조하는 부분입니다. 암호화 방식과 키 관리의 연관성을 설명하기 위해 하나의 청크로 구성했습니다."
+      },
+      {
+        "chunk_id": "chunk_008",
+        "why": "비대칭 암호화(RSA, ECDSA)에 대한 설명과 HTTPS의 역할, SSL 인증서 발급 방법을 소개하는 부분입니다. 비대칭 암호화의 활용 사례를 보여주기 위해 하나의 청크로 구성했습니다."
+      },
+      {
+        "chunk_id": "chunk_009",
+        "why": "해시 함수에 대한 설명과 안전한 비밀번호 저장 방법을 제시하는 부분입니다. 해시 함수의 중요성과 안전한 비밀번호 관리를 강조하기 위해 하나의 청크로 구성했습니다."
+      },
+      {
+        "chunk_id": "chunk_010",
+        "why": "DevSecOps의 개념과 SAST, DAST, SCA 등 다양한 보안 테스팅 도구를 소개하는 부분입니다. 개발 프로세스에 보안을 통합하는 중요성을 강조하기 위해 하나의 청크로 구성했습니다."
+      },
+      {
+        "chunk_id": "chunk_011",
+        "why": "침투 테스트(Penetration Testing)의 중요성과 방법론, 관련 도구를 소개하는 부분입니다. 실제 공격 시뮬레이션을 통해 보안 수준을 높이는 방법을 설명하기 위해 하나의 청크로 구성했습니다."
+      },
+      {
+        "chunk_id": "chunk_012",
+        "why": "인시던트 대응 절차와 SIEM(Security Information and Event Management) 도구를 소개하는 부분입니다. 보안 사고 발생 시 체계적인 대응의 중요성을 강조하기 위해 하나의 청크로 구성했습니다."
+      }
+    ],
+    "metadata_rationale": "title은 문서의 제목을 그대로 사용했습니다. topic은 문서의 주요 내용을 포괄하는 '정보보안'으로 설정했습니다. summary는 문서의 핵심 내용을 3줄 이내로 요약했습니다. keywords는 문서에서 가장 중요한 단어들을 추출하여 구성했습니다."
+  },
+  "output_summary": {
+    "chunk_count": 12,
+    "chunk_sizes": [
+      180,
+      610,
+      189,
+      162,
+      222,
+      142,
+      186,
+      175,
+      171,
+      230,
+      199,
+      196
+    ],
+    "metadata": {
+      "title": "정보보안 기초와 실무 적용",
+      "topic": "정보보안",
+      "summary": "정보보안의 기본 원칙, 인증/인가, 웹 보안 취약점, 암호화, 보안 운영을 다룬다. CIA 삼각형, OWASP Top 10, DevSecOps 등의 핵심 개념을 설명하고, 실무 적용 방안을 제시한다. 안전한 시스템 구축 및 운영을 위한 기초 지식을 제공한다.",
+      "keywords": [
+        "정보보안",
+        "OWASP",
+        "암호화",
+        "인증",
+        "인가"
+      ]
+    }
+  }
+}
