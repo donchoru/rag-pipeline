@@ -52,21 +52,25 @@ with tab1:
 
     st.divider()
 
-    # 수동 실행
+    # 수동 실행 — 변경 파일 카운트
+    all_pending = sorted(INPUT_DIR.glob("*.txt"))
+    _last = db.get_last_run()
+    _since = 0.0
+    if _last and _last.get("start_time"):
+        _since = datetime.fromisoformat(_last["start_time"]).timestamp()
+    changed_count = sum(1 for f in all_pending if f.stat().st_mtime > _since)
+
     run_mode = st.radio(
         "실행 모드",
-        ["변경된 파일만", "전체 실행"],
+        [f"변경된 파일만 ({changed_count}개)", f"전체 실행 ({len(all_pending)}개)"],
         horizontal=True,
         help="변경된 파일만: 마지막 실행 이후 추가/수정된 파일만 처리\n전체 실행: input_docs의 모든 파일 처리",
     )
 
     if st.button("🚀 지금 즉시 실행", type="primary"):
         cmd = [sys.executable, "pipeline.py"]
-        if run_mode == "변경된 파일만":
-            last = db.get_last_run()
-            if last and last.get("start_time"):
-                since_ts = datetime.fromisoformat(last["start_time"]).timestamp()
-                cmd += ["--since", str(since_ts)]
+        if run_mode.startswith("변경된 파일만") and _since > 0:
+            cmd += ["--since", str(_since)]
         with st.spinner("파이프라인 실행 중…"):
             try:
                 result = subprocess.run(
@@ -139,8 +143,26 @@ with tab_upload:
     st.subheader("대기 파일 목록")
     pending = sorted(INPUT_DIR.glob("*.txt"))
     if pending:
-        for f in pending:
-            st.text(f"📄 {f.name}  ({f.stat().st_size:,} bytes)")
+        last = db.get_last_run()
+        since_ts = 0.0
+        if last and last.get("start_time"):
+            since_ts = datetime.fromisoformat(last["start_time"]).timestamp()
+
+        changed = [f for f in pending if f.stat().st_mtime > since_ts]
+        unchanged = [f for f in pending if f.stat().st_mtime <= since_ts]
+
+        if changed:
+            st.caption(f"🟢 새로 추가/변경된 파일 ({len(changed)}개)")
+            for f in changed:
+                mtime = datetime.fromtimestamp(f.stat().st_mtime).strftime("%m/%d %H:%M")
+                st.text(f"  🆕 {f.name}  ({f.stat().st_size:,} bytes)  수정: {mtime}")
+        if unchanged:
+            st.caption(f"⚪ 이전 실행 전 파일 ({len(unchanged)}개)")
+            for f in unchanged:
+                mtime = datetime.fromtimestamp(f.stat().st_mtime).strftime("%m/%d %H:%M")
+                st.text(f"  📄 {f.name}  ({f.stat().st_size:,} bytes)  수정: {mtime}")
+        if not changed and not unchanged:
+            st.info("대기 중인 파일이 없습니다.")
     else:
         st.info("대기 중인 파일이 없습니다.")
 
