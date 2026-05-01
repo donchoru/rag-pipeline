@@ -12,7 +12,7 @@ ERROR_DIR = BASE_DIR / "error_docs"
 TRACE_DIR = BASE_DIR / "traces"
 DB_PATH = BASE_DIR / "pipeline_logs.db"
 
-LLM_MODEL = "gemini-2.0-flash"
+LLM_MODEL = "gemini-2.5-flash"
 SCHEDULE_CRON = {"hour": 0, "minute": 0}  # 매일 자정 KST
 
 # 청크 설정 파일
